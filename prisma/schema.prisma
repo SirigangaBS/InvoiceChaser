@@ -1,0 +1,188 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                   String                @id @default("demo-user-1")
+  email                String                @unique @default("freelancer@invoicechaser.dev")
+  name                 String                @default("Aarav Sharma")
+  businessName         String?               @default("Aarav Creative Studio")
+  businessAddress      String?               @default("402, Indiranagar 100ft Road, Bengaluru, Karnataka 560038")
+  upiId                String?               @default("aaravsharma@okhdfcbank")
+  bankDetails          String?               @default("HDFC Bank | A/C: 5010023491823 | IFSC: HDFC0000128")
+  phone                String?               @default("+91 98765 43210")
+  
+  // Trial & Subscription Fields
+  trialStartedAt       DateTime?             @default(now())
+  trialEndsAt          DateTime?
+  subscriptionStatus   String                @default("TRIAL") // TRIAL, ACTIVE, PAST_DUE, CANCELLED, EXPIRED
+  planId               String                @default("trial")
+  razorpayCustomerId   String?
+  role                 String                @default("ADMIN") // Default demo user has ADMIN access for hackathon evaluation
+  
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  clients              Client[]
+  invoices             Invoice[]
+  activityLogs         ActivityLog[]
+  subscriptions        Subscription[]
+  subscriptionPayments SubscriptionPayment[]
+  notifications        Notification[]
+}
+
+model Plan {
+  id               String         @id // "trial", "starter", "pro"
+  name             String         // "Free Trial", "Starter", "Pro"
+  priceInPaise     Int            // 0, 19900, 39900
+  billingInterval  String         @default("monthly")
+  invoiceLimit     Int            // e.g. 5 (trial), 50 (starter), -1 (unlimited)
+  aiReminderLimit  Int            // e.g. 10 (trial), 100 (starter), -1 (unlimited)
+  featuresJson     String         // JSON array of strings
+  razorpayPlanId   String?
+  subscriptions    Subscription[]
+}
+
+model Subscription {
+  id                      String    @id @default(cuid())
+  userId                  String    @default("demo-user-1")
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId                  String
+  plan                    Plan      @relation(fields: [planId], references: [id])
+  status                  String    @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELLED, EXPIRED
+  currentPeriodStart      DateTime  @default(now())
+  currentPeriodEnd        DateTime
+  cancelAtPeriodEnd       Boolean   @default(false)
+  razorpaySubscriptionId  String?   @unique
+  razorpayPaymentId       String?
+  gracePeriodEnd          DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+model SubscriptionPayment {
+  id                  String   @id @default(cuid())
+  userId              String   @default("demo-user-1")
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId              String
+  amountPaise         Int
+  currency            String   @default("INR")
+  status              String   @default("PAID") // PAID, FAILED, REFUNDED
+  razorpayPaymentId   String?  @unique
+  razorpayOrderId     String?
+  razorpaySignature   String?
+  invoiceUrl          String?
+  createdAt           DateTime @default(now())
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique // Provider event ID for idempotency!
+  eventType   String   // e.g. "subscription.activated", "payment.captured", "payment.failed"
+  payload     String
+  status      String   @default("PROCESSED") // PROCESSED, IGNORED, FAILED
+  createdAt   DateTime @default(now())
+}
+
+model Client {
+  id           String    @id @default(cuid())
+  userId       String    @default("demo-user-1")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  email        String
+  phone        String?
+  businessName String?
+  address      String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  invoices     Invoice[]
+}
+
+model Invoice {
+  id             String     @id @default(cuid())
+  userId         String     @default("demo-user-1")
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoiceNumber  String     @unique
+  description    String
+  itemsJson      String?    // JSON string array of items: [{ description, quantity, rate, amount }]
+  issueDate      DateTime
+  dueDate        DateTime
+  currency       String     @default("INR")
+  subtotalPaise  Int
+  taxRatePercent Float      @default(0)
+  taxPaise       Int        @default(0)
+  totalPaise     Int
+  paidPaise      Int        @default(0)
+  paymentLink    String?
+  notes          String?
+  status         String     @default("DRAFT") // DRAFT, SENT, REMINDER_SENT, OVERDUE, PAID, CANCELLED
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  payments       Payment[]
+  reminders      Reminder[]
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amountPaise   Int
+  paymentDate   DateTime @default(now())
+  paymentMethod String   @default("MANUAL") // MANUAL, UPI, BANK_TRANSFER, CASH
+  referenceNote String?
+  createdAt     DateTime @default(now())
+}
+
+model Reminder {
+  id             String    @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  tone           String    // Friendly, Professional, Firm
+  recipientEmail String
+  subject        String
+  body           String
+  status         String    @default("DRAFT") // DRAFT, SENDING, SENT, FAILED
+  provider       String?   // RESEND, DEMO_SIMULATED
+  providerId     String?
+  errorDetails   String?
+  scheduledFor   DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String   @default("demo-user-1")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @default("demo-user-1")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // INVOICE_DUE, OVERDUE, PAYMENT_RECEIVED, TRIAL_EXPIRING, SUBSCRIPTION_UPDATE, REMINDER_SENT, SYSTEM
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  linkUrl   String?
+  createdAt DateTime @default(now())
+}
+
+model AnalyticsEvent {
+  id             String   @id @default(cuid())
+  eventName      String   // landing_page_viewed, signup_completed, trial_started, etc.
+  distinctId     String   // anonymous or user hash
+  propertiesJson String?  // strictly non-sensitive telemetry only (e.g. planId, page, source)
+  createdAt      DateTime @default(now())
+}
+
