@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
     const user = await prisma.user.findUnique({
-      where: { id: "demo-user-1" },
+      where: { id: userId },
     });
 
     if (!user) {
@@ -45,11 +47,12 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
     const body = await req.json();
     const { name, businessName, businessAddress, upiId, bankDetails, phone } = body;
 
     const updated = await prisma.user.update({
-      where: { id: "demo-user-1" },
+      where: { id: userId },
       data: {
         name: name ? name.trim() : undefined,
         businessName: businessName ? businessName.trim() : undefined,
@@ -62,7 +65,7 @@ export async function PUT(req: NextRequest) {
 
     await prisma.activityLog.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         action: "SETTINGS_UPDATED",
         details: "Updated business profile and payment details",
       },

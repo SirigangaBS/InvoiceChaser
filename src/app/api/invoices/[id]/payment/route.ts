@@ -54,9 +54,20 @@ export async function POST(
     // Log Activity
     await prisma.activityLog.create({
       data: {
-        userId: "demo-user-1",
+        userId: invoice.userId,
         action: "PAYMENT_RECEIVED",
         details: `Recorded payment of ₹${amount.toLocaleString("en-IN")} (${paymentMethod}) for ${invoice.invoiceNumber}${isFullyPaid ? " (Fully Settled)" : ""}`,
+      },
+    });
+
+    // Create Notification for the invoice owner
+    await prisma.notification.create({
+      data: {
+        userId: invoice.userId,
+        type: "PAYMENT",
+        title: isFullyPaid ? "Invoice Paid in Full! 🎉" : "Partial Payment Received 💰",
+        message: `Payment of ₹${amount.toLocaleString("en-IN")} received for invoice ${invoice.invoiceNumber} (${invoice.client.name}).`,
+        linkUrl: `/invoices/${invoice.id}`,
       },
     });
 

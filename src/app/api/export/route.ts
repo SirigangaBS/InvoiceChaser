@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveStatus } from "@/lib/utils";
+import { getAuthUserId } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
 
   try {
+    const userId = await getAuthUserId(req);
     const { searchParams } = new URL(req.url);
     const format = searchParams.get("format") || "json";
 
     // Fetch user and all clients and invoices
     const user = await prisma.user.findUnique({
-      where: { id: "demo-user-1" },
+      where: { id: userId },
     });
 
     const clients = await prisma.client.findMany({
-      where: { userId: "demo-user-1" },
+      where: { userId },
       orderBy: { createdAt: "desc" },
     });
 
     const invoices = await prisma.invoice.findMany({
-      where: { userId: "demo-user-1" },
+      where: { userId },
       include: {
         client: true,
         payments: true,

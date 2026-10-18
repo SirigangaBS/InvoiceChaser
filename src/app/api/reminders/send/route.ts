@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveStatus } from "@/lib/utils";
 import { getUserSubscription } from "@/lib/subscriptions";
+import { getAuthUserId } from "@/lib/auth";
 import { Resend } from "resend";
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
+
     // Server-side entitlement & trial verification
-    const subInfo = await getUserSubscription("demo-user-1");
+    const subInfo = await getUserSubscription(userId);
     if (!subInfo.entitlements.canSendReminder) {
       return NextResponse.json(
         {
@@ -136,7 +139,7 @@ export async function POST(req: NextRequest) {
     // Log Activity
     await prisma.activityLog.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         action: "REMINDER_SENT",
         details: `${isRealSend ? "Real email" : "Demo simulation"} sent to ${recipientEmail} for invoice ${invoice.invoiceNumber} (${tone} tone)`,
       },

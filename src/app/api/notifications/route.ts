@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDaysOverdue, formatINR, formatDate } from "@/lib/utils";
+import { getAuthUserId } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const userId = "demo-user-1";
+    const userId = await getAuthUserId(req);
 
     // 1. Check for automated real-time triggers to keep notifications fresh
     const unpaidInvoices = await prisma.invoice.findMany({
@@ -86,7 +87,7 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const userId = "demo-user-1";
+    const userId = await getAuthUserId(req);
     const body = await req.json().catch(() => ({}));
     const { id, markAll = false } = body;
 

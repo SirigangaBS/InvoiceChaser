@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
     const clients = await prisma.client.findMany({
-      where: { userId: "demo-user-1" },
+      where: { userId },
       include: {
         invoices: {
           select: {
@@ -69,9 +71,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "A valid email address is required" }, { status: 400 });
     }
 
+    const userId = await getAuthUserId(req);
+
     const client = await prisma.client.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone ? phone.trim() : null,
@@ -83,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.activityLog.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         action: "CLIENT_CREATED",
         details: `Added new client: ${client.name} (${client.businessName || "Individual"})`,
       },

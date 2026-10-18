@@ -19,6 +19,7 @@ import {
   AlertCircle,
   RefreshCw,
   Send,
+  ExternalLink,
 } from "lucide-react";
 import { formatINR, formatDate, getStatusBadgeInfo, getDaysOverdue } from "@/lib/utils";
 import { generateInvoicePdf } from "@/lib/pdfGenerator";
@@ -153,6 +154,17 @@ function InvoiceDetailsContent() {
                 <span>AI Follow-Up</span>
               </Link>
             )}
+
+            <a
+              href={`/pay/${invoice.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-lime-400 hover:text-lime-300 text-xs font-semibold transition"
+              title="Open public payment portal"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Client Pay Link</span>
+            </a>
 
             <button
               onClick={handleDownloadPdf}

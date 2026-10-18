@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PLANS } from "@/lib/subscriptions";
+import { getAuthUserId } from "@/lib/auth";
 import Razorpay from "razorpay";
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
     const body = await req.json();
     const { planId } = body;
 
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
           notes: {
             planId: plan.id,
             planName: plan.name,
-            userId: "demo-user-1",
+            userId,
           },
         });
 

@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatINR, formatDate, getDaysOverdue, getEffectiveStatus } from "@/lib/utils";
 import { getUserSubscription } from "@/lib/subscriptions";
+import { getAuthUserId } from "@/lib/auth";
 import OpenAI from "openai";
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
+
     // Server-side entitlement & trial verification
-    const subInfo = await getUserSubscription("demo-user-1");
+    const subInfo = await getUserSubscription(userId);
     if (!subInfo.entitlements.canGenerateAiReminder) {
       return NextResponse.json(
         {
@@ -62,6 +65,9 @@ export async function POST(req: NextRequest) {
     const upiId = invoice.user.upiId || "";
     const bankDetails = invoice.user.bankDetails || "";
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const payLink = invoice.paymentLink?.trim() || `${appUrl}/pay/${invoice.id}`;
+
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     const isApiKeyConfigured = Boolean(apiKey && apiKey.length > 5 && !apiKey.startsWith("your_"));
 
@@ -72,7 +78,7 @@ export async function POST(req: NextRequest) {
       try {
         const openai = new OpenAI({ apiKey });
 
-        const systemPrompt = `You are a professional invoice follow-up assistant. Write a short, respectful payment reminder using only the supplied invoice facts. Do not invent amounts, dates, discounts, fees, payment links, legal threats, or promises. Do not assume the client has not paid if payment status is uncertain. Use the selected tone (${tone}) and make the message concise, polite, and easy to understand. Output a clean subject line on the first line prefixed with 'Subject: ', followed by two newlines and the email body.`;
+        const systemPrompt = `You are a professional invoice follow-up assistant. Write a short, respectful payment reminder using only the supplied invoice facts. Do not invent amounts, dates, discounts, fees, legal threats, or promises. Do not assume the client has not paid if payment status is uncertain. Always include the official online payment link so the client can settle immediately. Use the selected tone (${tone}) and make the message concise, polite, and easy to understand. Output a clean subject line on the first line prefixed with 'Subject: ', followed by two newlines and the email body.`;
 
         const userPrompt = `
 Invoice Number: ${invoice.invoiceNumber}
@@ -84,6 +90,7 @@ Days Overdue: ${daysOverdue > 0 ? `${daysOverdue} days overdue` : "Due soon"}
 Tone: ${tone}
 Sender Name: ${senderName}
 Sender Business: ${businessName}
+Instant Online Payment Link: ${payLink}
 UPI Payment ID: ${upiId}
 Bank Details: ${bankDetails}
 Optional Note from Sender: ${customNote ? String(customNote).slice(0, 200) : "None"}
@@ -110,7 +117,6 @@ Optional Note from Sender: ${customNote ? String(customNote).slice(0, 200) : "No
         }
       } catch (aiError: any) {
         console.error("OpenAI API call failed, falling back to simulated generation:", aiError?.message);
-        // Fall back gracefully with clear message
       }
     }
 
@@ -129,7 +135,10 @@ Hope you're having a wonderful and productive week!
 
 I'm checking in on invoice ${invoice.invoiceNumber} for ${amountRupeesFormatted}, ${overduePhrase}.
 
-I understand things can get busy, so I wanted to share a gentle reminder. For your convenience, here are the payment details:
+I understand things can get busy, so I wanted to share a gentle reminder. You can settle securely in 1 click here:
+👉 Pay Online: ${payLink}
+
+Alternatively, here are the direct payment details:
 - UPI ID: ${upiId || "Available upon request"}
 - Bank: ${bankDetails || "Available on invoice"}
 
@@ -144,7 +153,10 @@ ${businessName}`;
 
 This is an important reminder regarding invoice ${invoice.invoiceNumber} for ${amountRupeesFormatted}, which was due on ${dueDateFormatted} and is now ${Math.max(1, daysOverdue)} days overdue.
 
-To keep your account current and avoid any disruption to ongoing projects, please arrange the settlement today using the details below:
+To keep your account current and avoid any disruption to ongoing projects, please arrange the settlement today using the link below:
+👉 Pay Online (Instant Settlement): ${payLink}
+
+Alternatively, transfer directly via:
 - Amount Due: ${amountRupeesFormatted}
 - UPI ID: ${upiId || "Available upon request"}
 - Bank Details: ${bankDetails || "Available on invoice"}
@@ -163,7 +175,10 @@ I hope this email finds you well.
 
 This is a courteous follow-up regarding invoice ${invoice.invoiceNumber} in the amount of ${amountRupeesFormatted}, ${overduePhrase}.
 
-Kindly let me know the scheduled payment date, or process the transfer using the information below:
+You can quickly review and settle this invoice online via the secure portal:
+👉 Pay Online: ${payLink}
+
+Alternatively, you may process the transfer using the information below:
 - Amount: ${amountRupeesFormatted}
 - UPI ID: ${upiId || "Available on invoice"}
 - Bank Transfer: ${bankDetails || "Available on invoice"}

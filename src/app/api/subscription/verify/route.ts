@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PLANS } from "@/lib/subscriptions";
+import { getAuthUserId } from "@/lib/auth";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
     const body = await req.json();
     const {
       razorpay_order_id,
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     // Update User subscription
     await prisma.user.update({
-      where: { id: "demo-user-1" },
+      where: { id: userId },
       data: {
         subscriptionStatus: "ACTIVE",
         planId: plan.id,
@@ -88,7 +90,7 @@ export async function POST(req: NextRequest) {
     // Create Subscription record
     const subscription = await prisma.subscription.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         planId: plan.id,
         status: "ACTIVE",
         currentPeriodStart: now,
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
     // Create Payment record
     const payment = await prisma.subscriptionPayment.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         planId: plan.id,
         amountPaise: plan.priceInPaise,
         currency: "INR",
@@ -116,7 +118,7 @@ export async function POST(req: NextRequest) {
     // Log Activity
     await prisma.activityLog.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         action: "SUBSCRIPTION_ACTIVATED",
         details: `Subscribed to ${plan.name} (₹${plan.priceInRupees}/mo) via ${isConfigured && !isSimulated ? "Razorpay" : "Test Checkout"}. Active through ${periodEnd.toLocaleDateString("en-IN")}.`,
       },

@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveStatus } from "@/lib/utils";
 import { getUserSubscription } from "@/lib/subscriptions";
+import { getAuthUserId } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search")?.toLowerCase();
     const status = searchParams.get("status")?.toUpperCase();
     const clientId = searchParams.get("clientId");
 
-    const where: any = { userId: "demo-user-1" };
+    const where: any = { userId };
 
     if (clientId) {
       where.clientId = clientId;
@@ -60,8 +62,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
+
     // Server-side entitlement & trial verification
-    const subInfo = await getUserSubscription("demo-user-1");
+    const subInfo = await getUserSubscription(userId);
     if (!subInfo.entitlements.canCreateInvoice) {
       return NextResponse.json(
         {
@@ -136,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     const newInvoice = await prisma.invoice.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         clientId,
         invoiceNumber,
         description: description.trim(),
@@ -160,7 +164,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.activityLog.create({
       data: {
-        userId: "demo-user-1",
+        userId,
         action: "INVOICE_CREATED",
         details: `Created invoice ${newInvoice.invoiceNumber} (₹${Math.round(totalPaise / 100).toLocaleString("en-IN")}) for ${client.name}`,
       },

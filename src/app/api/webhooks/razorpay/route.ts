@@ -59,15 +59,16 @@ export async function POST(req: NextRequest) {
     // 1. Payment Captured / Order Paid / Subscription Charged (Renewal)
     if (eventType === "payment.captured" || eventType === "order.paid" || eventType === "subscription.charged") {
       const paymentEntity = payload.payment?.entity;
-      const notes = paymentEntity?.notes || {};
+      const notes = paymentEntity?.notes || payload.order?.entity?.notes || {};
       const planId = notes.planId || "starter";
       const plan = PLANS[planId] || PLANS.starter;
+      const targetUserId = notes.userId || "demo-user-1";
 
       const now = new Date();
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
       await prisma.user.update({
-        where: { id: "demo-user-1" },
+        where: { id: targetUserId },
         data: {
           subscriptionStatus: "ACTIVE",
           planId: plan.id,
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
 
       // Update existing active subscription or create new
       const existingSub = await prisma.subscription.findFirst({
-        where: { userId: "demo-user-1", status: { in: ["ACTIVE", "PAST_DUE", "PAUSED"] } },
+        where: { userId: targetUserId, status: { in: ["ACTIVE", "PAST_DUE", "PAUSED"] } },
         orderBy: { createdAt: "desc" },
       });
 
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
       } else {
         await prisma.subscription.create({
           data: {
-            userId: "demo-user-1",
+            userId: targetUserId,
             planId: plan.id,
             status: "ACTIVE",
             currentPeriodStart: now,
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
 
       await prisma.subscriptionPayment.create({
         data: {
-          userId: "demo-user-1",
+          userId: targetUserId,
           planId: plan.id,
           amountPaise: paymentEntity?.amount || plan.priceInPaise,
           currency: paymentEntity?.currency || "INR",
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
 
       await prisma.activityLog.create({
         data: {
-          userId: "demo-user-1",
+          userId: targetUserId,
           action: eventType === "subscription.charged" ? "SUBSCRIPTION_RENEWED" : "WEBHOOK_PAYMENT_CAPTURED",
           details: `Webhook verified payment of ₹${(paymentEntity?.amount ? paymentEntity.amount / 100 : plan.priceInRupees)} for ${plan.name} (${eventType}).`,
         },

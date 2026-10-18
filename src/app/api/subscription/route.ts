@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getUserSubscription, PLANS } from "@/lib/subscriptions";
+import { getAuthUserId } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const data = await getUserSubscription("demo-user-1");
+    const userId = await getAuthUserId(req);
+    const data = await getUserSubscription(userId);
     const hasRazorpayKeys = Boolean(
       process.env.RAZORPAY_KEY_ID &&
         process.env.RAZORPAY_KEY_SECRET &&

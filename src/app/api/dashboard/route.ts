@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveStatus, getDaysOverdue } from "@/lib/utils";
+import { getAuthUserId } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const userId = await getAuthUserId(req);
     const user = await prisma.user.findUnique({
-      where: { id: "demo-user-1" },
+      where: { id: userId },
       include: {
         invoices: {
           include: {

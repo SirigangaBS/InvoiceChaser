@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDaysOverdue, formatINR, formatDate, getEffectiveStatus } from "@/lib/utils";
+import { getAuthUserId } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const userId = "demo-user-1";
+    const userId = await getAuthUserId(req);
 
     // 1. Fetch activity logs
     const logs = await prisma.activityLog.findMany({
@@ -101,7 +102,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = "demo-user-1";
+    const userId = await getAuthUserId(req);
     const body = await req.json().catch(() => ({}));
     const { action = "scan-cadence" } = body;
 
