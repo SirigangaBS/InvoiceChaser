@@ -98,7 +98,7 @@ export default function LandingPage() {
           {/* Action CTAs */}
           <div className="flex items-center gap-3">
             <Link
-              href="/dashboard"
+              href="/login"
               className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 bg-slate-900/80 transition"
             >
               Sign In

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -21,6 +21,9 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
+  LogOut,
+  User as UserIcon,
+  ChevronDown,
 } from "lucide-react";
 
 interface AppLayoutProps {
@@ -30,10 +33,15 @@ interface AppLayoutProps {
 
 function AppLayoutInner({ children, onNewInvoiceClick }: AppLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [subData, setSubData] = useState<any>(null);
   const [togglingTrial, setTogglingTrial] = useState(false);
+
+  // User Profile State
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Notification Center State
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -52,6 +60,25 @@ function AppLayoutInner({ children, onNewInvoiceClick }: AppLayoutProps) {
     { name: "Admin Metrics", href: "/admin", icon: ShieldAlert, badge: "Admin" },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
+
+  const fetchAuth = () => {
+    fetch("/api/auth")
+      .then((res) => {
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data?.user) {
+          setCurrentUser(data.user);
+        } else if (data && !data.authenticated) {
+          window.location.href = "/login";
+        }
+      })
+      .catch(console.error);
+  };
 
   const fetchSubscription = () => {
     fetch("/api/subscription")
@@ -73,9 +100,23 @@ function AppLayoutInner({ children, onNewInvoiceClick }: AppLayoutProps) {
   };
 
   useEffect(() => {
+    fetchAuth();
     fetchSubscription();
     fetchNotifications();
   }, [pathname]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+      window.location.href = "/login";
+    } catch {
+      window.location.href = "/login";
+    }
+  };
 
   const handleMarkAllRead = async () => {
     try {
@@ -410,12 +451,92 @@ function AppLayoutInner({ children, onNewInvoiceClick }: AppLayoutProps) {
               <Plus className="w-4 h-4" />
               <span>New Invoice</span>
             </Link>
+
+            {/* User Profile Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
+                title="Account Menu"
+              >
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-lime-500 to-emerald-400 flex items-center justify-center text-slate-950 font-extrabold text-xs">
+                  {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "AS"}
+                </div>
+                <div className="hidden md:block text-left">
+                  <div className="text-xs font-semibold text-slate-200 leading-tight">
+                    {currentUser?.name || "Aarav Sharma"}
+                  </div>
+                  <div className="text-[10px] text-lime-400 leading-none">
+                    {currentUser?.role === "ADMIN" ? "Admin" : isPaid ? "Pro Plan" : "Trial"}
+                  </div>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl bg-[#0C1222] border border-slate-800 shadow-2xl p-2 z-50 text-xs animate-in fade-in">
+                  <div className="px-3 py-2 border-b border-slate-800 mb-1">
+                    <p className="font-semibold text-white truncate">{currentUser?.name || "Aarav Sharma"}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{currentUser?.email || "freelancer@invoicechaser.dev"}</p>
+                  </div>
+                  <Link
+                    href="/settings"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-850 transition"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Profile & Business</span>
+                  </Link>
+                  <Link
+                    href="/billing"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-850 transition"
+                  >
+                    <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Billing & Subscriptions</span>
+                  </Link>
+                  <Link
+                    href="/login"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-850 transition"
+                  >
+                    <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Switch User / Accounts</span>
+                  </Link>
+                  <div className="border-t border-slate-800 my-1"></div>
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition text-left"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-[#0C1222] border-b border-slate-800 px-4 py-3 space-y-1">
+            <div className="px-3 py-2 mb-2 bg-[#090D16] rounded-xl border border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-white">{currentUser?.name || "Aarav Sharma"}</p>
+                <p className="text-[10px] text-slate-400 truncate">{currentUser?.email || "freelancer@invoicechaser.dev"}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 text-[11px] text-rose-400 hover:underline font-semibold"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>Log Out</span>
+              </button>
+            </div>
+
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;

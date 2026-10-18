@@ -10,6 +10,7 @@ generator client {
 model User {
   id                   String                @id @default("demo-user-1")
   email                String                @unique @default("freelancer@invoicechaser.dev")
+  password             String?               @default("demo123456")
   name                 String                @default("Aarav Sharma")
   businessName         String?               @default("Aarav Creative Studio")
   businessAddress      String?               @default("402, Indiranagar 100ft Road, Bengaluru, Karnataka 560038")

@@ -87,6 +87,7 @@ async function main() {
   const user = await prisma.user.upsert({
     where: { email: 'freelancer@invoicechaser.dev' },
     update: {
+      password: 'demo123456',
       trialStartedAt: now,
       trialEndsAt: trialEnds,
       subscriptionStatus: 'TRIAL',
@@ -95,16 +96,37 @@ async function main() {
     create: {
       id: 'demo-user-1',
       email: 'freelancer@invoicechaser.dev',
+      password: 'demo123456',
       name: 'Aarav Sharma',
       businessName: 'Aarav Creative Studio',
       businessAddress: '402, Indiranagar 100ft Road, Bengaluru, Karnataka 560038',
       upiId: 'aaravsharma@okhdfcbank',
       bankDetails: 'HDFC Bank | A/C: 5010023491823 | IFSC: HDFC0000128',
       phone: '+91 98765 43210',
+      role: 'ADMIN',
       trialStartedAt: now,
       trialEndsAt: trialEnds,
       subscriptionStatus: 'TRIAL',
       planId: 'trial',
+    },
+  });
+
+  // Seed Admin Evaluator User
+  await prisma.user.upsert({
+    where: { email: 'admin@invoicechaser.dev' },
+    update: {
+      password: 'admin123456',
+      role: 'ADMIN',
+    },
+    create: {
+      id: 'admin-user-1',
+      email: 'admin@invoicechaser.dev',
+      password: 'admin123456',
+      name: 'Admin Evaluator',
+      businessName: 'InvoiceChaser Internal Ops',
+      role: 'ADMIN',
+      subscriptionStatus: 'ACTIVE',
+      planId: 'pro',
     },
   });
 
